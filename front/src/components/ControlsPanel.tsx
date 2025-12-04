@@ -18,6 +18,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({ isSimulationRunning, setI
     const [packetRate, setPacketRate] = useState(10);
     const [trafficPattern, setTrafficPattern] = useState("constant");
     const [duration, setDuration] = useState(30);
+    const [processingDelay, setProcessingDelay] = useState(0.1);
 
     const handleNodeChange = (value: number) => {
         const clampedValue = Math.max(MIN_NODES, Math.min(MAX_NODES, value));
@@ -33,7 +34,8 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({ isSimulationRunning, setI
             packet_rate: packetRate,
             traffic_pattern: trafficPattern,
             duration: duration * 1000, // Convert seconds to ms for backend
-            realtime: true
+            realtime: true,
+            processing_delay: processingDelay
         };
         await startSimulation(params);
         setIsSimulationRunning(true);
@@ -128,6 +130,20 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({ isSimulationRunning, setI
                         max={300}
                         disabled={isSimulationRunning} 
                     />
+                </div>
+
+                <div className="input-group">
+                    <label>Node Processing Delay</label>
+                    <input 
+                        type="range" 
+                        min="0" 
+                        max="2" 
+                        step="0.05" 
+                        value={processingDelay} 
+                        onChange={(e) => setProcessingDelay(parseFloat(e.target.value))}
+                        disabled={isSimulationRunning} 
+                    />
+                     <span className="slider-value">{processingDelay.toFixed(2)}s</span>
                 </div>
             </div>
             

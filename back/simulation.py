@@ -1,5 +1,6 @@
 import heapq
 import time
+import random
 from collections import deque
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
@@ -37,6 +38,7 @@ class Simulation:
             "packet_loss": 0,
         }
         self.packet_id_counter = 0
+        self.processing_delay = 0.1 # Default processing delay
 
     def _calculate_routing_table(self):
         self.routing_tables = {}
@@ -97,7 +99,7 @@ class Simulation:
         
         self._calculate_routing_table()
 
-    def start_simulation(self, traffic_config: Dict, duration: int, realtime: bool = True):
+    def start_simulation(self, traffic_config: Dict, duration: int, realtime: bool = True, processing_delay: float = 0.1):
         self.is_running = True
         self.simulation_time = 0.0
         self.event_queue = []
@@ -106,6 +108,7 @@ class Simulation:
         self.event_counter = 0
         self.traffic_config = traffic_config
         self.realtime = realtime
+        self.processing_delay = processing_delay
         
         # Recalculate routing tables in case configuration changed
         self._calculate_routing_table()
@@ -174,21 +177,13 @@ class Simulation:
         self.__init__()
 
     def run(self):
-        import time
         start_wall_time = time.time()
         
         while self.event_queue and self.is_running:
             event_time, _, event_type, event_data = heapq.heappop(self.event_queue)
             
             if self.realtime:
-                # Calculate how much time has passed in reality
                 elapsed_wall = time.time() - start_wall_time
-                # Calculate how much time should have passed in simulation (scaled if needed, but 1:1 for now)
-                # If event is in the future relative to wall time, sleep
-                # Convert simulation time (which might be in arbitrary units, but let's assume seconds for realtime)
-                # In previous code, duration was passed as ms but used as is.
-                # Let's assume simulation_time is in seconds.
-                
                 wait_time = event_time - elapsed_wall
                 if wait_time > 0:
                     time.sleep(wait_time)
@@ -199,26 +194,23 @@ class Simulation:
                 self._handle_packet_generation(event_data)
             elif event_type == "PACKET_ARRIVAL":
                 self._handle_packet_arrival(event_data)
+            elif event_type == "PROCESS_PACKET":
+                self._handle_process_packet(event_data)
             elif event_type == "SIMULATION_END":
                 self.stop_simulation()
                 break
 
     def _schedule_packet_generation(self, node_name: str):
-        import random
-        import math
-        
         rate = self.traffic_config.get("packet_rate", 10)
         pattern = self.traffic_config.get("pattern", "constant")
         
         if pattern == "poisson":
-            # Exponential distribution for inter-arrival time
-            interval = -math.log(1.0 - random.random()) / rate
+            interval = random.expovariate(rate)
         elif pattern == "bursty":
-            # Simple bursty model: 80% chance of short interval, 20% chance of long
             if random.random() < 0.8:
-                interval = 1.0 / (rate * 5) # Burst
+                interval = random.expovariate(rate * 5) # High rate -> short interval
             else:
-                interval = 1.0 / (rate / 5) # Idle
+                interval = random.expovariate(rate / 5) # Low rate -> long interval
         else: # constant
             interval = 1.0 / rate
 
@@ -228,11 +220,9 @@ class Simulation:
     def _handle_packet_generation(self, event_data):
         node_name = event_data["node_name"]
         
-        # Only generate packet if there are other nodes reachable
         reachable_nodes = [dest for dest in self.nodes if dest != node_name and dest in self.routing_tables.get(node_name, {})]
         
         if reachable_nodes:
-            import random
             destination_name = random.choice(reachable_nodes)
 
             packet = Packet(
@@ -242,7 +232,6 @@ class Simulation:
                 timestamp=self.simulation_time
             )
             self.packet_id_counter += 1
-            # Directly schedule arrival at the source node's own queue
             self._schedule_arrival(node_name, packet)
 
         self._schedule_packet_generation(node_name)
@@ -259,46 +248,56 @@ class Simulation:
         node = self.nodes[node_name]
 
         if packet.destination == node_name:
-            # Packet reached destination
             latency = self.simulation_time - packet.timestamp
             self.metrics["latency"].append(latency)
             node.packets_processed += 1
             self.metrics["throughput"] += 1
-        elif len(node.queue) < node.queue_size:
-            node.queue.append(packet)
-            self._process_queue(node_name)
         else:
-            node.packets_dropped += 1
-            self.metrics["packet_loss"] += 1
+            was_idle = len(node.queue) == 0
+            if len(node.queue) < node.queue_size:
+                node.queue.append(packet)
+                if was_idle:
+                    self._schedule_process_packet(node_name)
+            else:
+                node.packets_dropped += 1
+                self.metrics["packet_loss"] += 1
+    
+    def _schedule_process_packet(self, node_name: str):
+        processing_time = self.simulation_time + self.processing_delay
+        self._push_event(processing_time, "PROCESS_PACKET", {"node_name": node_name})
 
-
-    def _process_queue(self, node_name: str):
+    def _handle_process_packet(self, event_data):
+        node_name = event_data["node_name"]
         node = self.nodes[node_name]
         if node.queue:
             packet = node.queue[0] # Peek first
             
-            # Find next hop
             next_hop = self.routing_tables.get(node_name, {}).get(packet.destination)
             
             if next_hop:
-                # Find the link to next hop
                 link = next((l for l in self.links.get(node_name, []) if l.destination == next_hop), None)
                 
                 if link:
-                    node.queue.popleft() # Remove from queue only if we can send it
+                    packet = node.queue.popleft() # Pop it, we're sending it
                     node.packets_processed += 1
                     travel_time = link.latency + packet.size / link.bandwidth
                     arrival_time = self.simulation_time + travel_time
                     self._push_event(arrival_time, "PACKET_ARRIVAL", {"node_name": next_hop, "packet": packet.dict()})
                 else:
-                     # Should not happen if routing table is correct, but handle gracefully
-                     pass
+                    # No link, even though there is a route. Should not happen. Drop.
+                    packet = node.queue.popleft()
+                    node.packets_dropped += 1
+                    self.metrics["packet_loss"] += 1
             else:
-                # No route found, drop packet? Or keep in queue?
-                # For now, drop it to avoid blocking queue
-                node.queue.popleft()
+                # No route, drop.
+                packet = node.queue.popleft()
                 node.packets_dropped += 1
                 self.metrics["packet_loss"] += 1
+        
+        # If there are more packets, schedule the next one
+        if node.queue:
+            self._schedule_process_packet(node_name)
+
 
     def _calculate_final_metrics(self):
         if self.metrics["latency"]:

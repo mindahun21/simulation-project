@@ -26,6 +26,7 @@ class StartSimulationRequest(BaseModel):
     link_bandwidth: int = 100
     duration: int = 10000
     realtime: bool = True
+    processing_delay: float = 0.1
 
 class ConfigureNetworkRequest(BaseModel):
     nodes: List[Dict]
@@ -50,7 +51,7 @@ def start_simulation(req: StartSimulationRequest, background_tasks: BackgroundTa
     
     # Start simulation in background
     # duration is in ms, convert to seconds for simulation time
-    background_tasks.add_task(sim.start_simulation, traffic_config, req.duration / 1000.0, req.realtime)
+    background_tasks.add_task(sim.start_simulation, traffic_config, req.duration / 1000.0, req.realtime, req.processing_delay)
     return {"status": "Simulation started"}
 
 @app.post("/pause_simulation")

@@ -1,6 +1,16 @@
 const API_BASE_URL = 'http://localhost:8000'; // Assuming backend runs on port 8000
 
-export const startSimulation = async (params: any) => {
+interface StartSimulationParams {
+    num_nodes: number;
+    topology_type: string;
+    packet_rate: number;
+    traffic_pattern: string;
+    duration: number;
+    realtime: boolean;
+    processing_delay: number;
+}
+
+export const startSimulation = async (params: StartSimulationParams) => {
     const response = await fetch(`${API_BASE_URL}/start_simulation`, {
         method: 'POST',
         headers: {
