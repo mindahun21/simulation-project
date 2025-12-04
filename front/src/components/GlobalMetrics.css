@@ -1,0 +1,114 @@
+.global-metrics {
+    background: linear-gradient(135deg, #1e1e2f 0%, #2d2d44 100%);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.global-metrics h2 {
+    margin: 0 0 1.5rem 0;
+    font-size: 1.4rem;
+    color: #fff;
+    border-bottom: 2px solid #e94560;
+    padding-bottom: 0.75rem;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+}
+
+.metric-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: 12px 12px 0 0;
+}
+
+.metric-card.latency::before {
+    background: linear-gradient(90deg, #60a5fa, #3b82f6);
+}
+
+.metric-card.throughput::before {
+    background: linear-gradient(90deg, #34d399, #10b981);
+}
+
+.metric-card.packet-loss::before {
+    background: linear-gradient(90deg, #f87171, #ef4444);
+}
+
+.metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.metric-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.metric-label {
+    color: #a0a0b0;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.metric-unit {
+    font-size: 1rem;
+    font-weight: 400;
+    color: #888;
+    margin-left: 4px;
+}
+
+.metric-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.metric-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease-out;
+}
+
+.latency-bar {
+    background: linear-gradient(90deg, #60a5fa, #3b82f6);
+}
+
+.throughput-bar {
+    background: linear-gradient(90deg, #34d399, #10b981);
+}
+
+.packet-loss-bar {
+    background: linear-gradient(90deg, #f87171, #ef4444);
+}
