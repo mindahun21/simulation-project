@@ -60,7 +60,6 @@ class Simulation:
                     for link in self.links[current_node]:
                         neighbor = link.destination
                         # Weight is latency + (1/bandwidth) * 1000 (to make bandwidth significant)
-                        # Adjust weight calculation as needed for realism
                         weight = link.latency + (1.0 / link.bandwidth) 
                         distance = current_dist + weight
                         
