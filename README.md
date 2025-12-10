@@ -43,7 +43,7 @@ The routing of packets is determined by Dijkstra's algorithm, which calculates t
 - **Framework:** React with TypeScript and Vite
 - **Styling:** CSS
 - **API Client:** `fetch` API
-- **Charting:** Recharts (or a similar library would be used for the `MetricsCharts` component)
+- **Charting:** Recharts
 
 ### Back-end
 
